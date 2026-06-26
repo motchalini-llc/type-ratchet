@@ -1,0 +1,37 @@
+name: self-test
+
+# アクション自身を fixture に対して実行し、clean は通り dirty は落ちることを検証する。
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  clean-passes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: clean fixture should pass
+        uses: ./
+        with:
+          language: typescript
+          working-directory: tests/fixtures/ts-clean
+
+  dirty-fails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: dirty fixture should fail
+        id: gate
+        continue-on-error: true
+        uses: ./
+        with:
+          language: typescript
+          working-directory: tests/fixtures/ts-dirty
+      - name: assert the gate failed
+        run: |
+          if [ "${{ steps.gate.outcome }}" = "success" ]; then
+            echo "❌ expected the gate to FAIL on the dirty fixture"
+            exit 1
+          fi
+          echo "✅ dirty fixture correctly failed the gate"

@@ -1,0 +1,50 @@
+name: 'Type Ratchet'
+description: 'Block new dynamic types (Any/any, type: ignore/as any) from creeping into a type-checked codebase.'
+author: 'motchalini'
+branding:
+  icon: 'lock'
+  color: 'purple'
+
+inputs:
+  language:
+    description: 'python | typescript | auto (auto detects from pyproject.toml / tsconfig.json)'
+    required: false
+    default: 'auto'
+  paths:
+    description: 'Space-separated directories to scan.'
+    required: false
+    default: 'src'
+  baseline-any:
+    description: 'Max allowed dynamic-type count (Any / any). Fails if the count exceeds this.'
+    required: false
+    default: '0'
+  baseline-suppress:
+    description: 'Max allowed suppression count (type: ignore / as any / @ts-ignore).'
+    required: false
+    default: '0'
+  baseline-file:
+    description: 'Optional file defining ANY_BASELINE / SUP_BASELINE (overrides the numeric inputs).'
+    required: false
+    default: ''
+  typecheck-command:
+    description: 'Optional command also run as part of the gate (e.g. "pnpm exec tsc --noEmit" or "uv run mypy src").'
+    required: false
+    default: ''
+  working-directory:
+    description: 'Directory to run in.'
+    required: false
+    default: '.'
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      env:
+        INPUT_LANGUAGE: ${{ inputs.language }}
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_BASELINE_ANY: ${{ inputs.baseline-any }}
+        INPUT_BASELINE_SUPPRESS: ${{ inputs.baseline-suppress }}
+        INPUT_BASELINE_FILE: ${{ inputs.baseline-file }}
+        INPUT_TYPECHECK_COMMAND: ${{ inputs.typecheck-command }}
+        INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: bash "$GITHUB_ACTION_PATH/gate.sh"
