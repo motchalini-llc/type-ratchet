@@ -10,6 +10,11 @@ set -uo pipefail
 
 cd "${INPUT_WORKING_DIRECTORY:-.}"
 
+# GitHub のインライン注釈(::error)はリポジトリルート基準のパスを要求するため、
+# working-directory が "." 以外なら違反パスにプレフィックスを付ける。
+ANNOT_PREFIX=""
+[ "${INPUT_WORKING_DIRECTORY:-.}" != "." ] && ANNOT_PREFIX="${INPUT_WORKING_DIRECTORY%/}/"
+
 LANGUAGE="${INPUT_LANGUAGE:-auto}"
 if [ "$LANGUAGE" = "auto" ]; then
   if [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f mypy.ini ] || [ -f setup.py ]; then
@@ -59,8 +64,34 @@ read -ra PATHS <<< "${INPUT_PATHS:-src}"
 count() {
   { grep -rnIE "${INCLUDES[@]}" "${EXCLUDES[@]}" "$1" "${PATHS[@]}" || true; } | wc -l | tr -d ' '
 }
-show() {
-  grep -rnIE "${INCLUDES[@]}" "${EXCLUDES[@]}" "$1" "${PATHS[@]}" || true
+# 違反箇所を一覧表示し、GitHub Actions のインライン注釈(::error)も出す。
+report() {
+  local pat="$1" kind="$2" m file line
+  while IFS= read -r m; do
+    [ -n "$m" ] || continue
+    file="${m%%:*}"
+    line="$(printf '%s' "$m" | cut -d: -f2)"
+    echo "  ${ANNOT_PREFIX}${file}:${line}"
+    echo "::error file=${ANNOT_PREFIX}${file},line=${line}::Type Ratchet: new ${kind} not allowed (exceeds baseline)"
+  done < <(grep -rnIE "${INCLUDES[@]}" "${EXCLUDES[@]}" "$pat" "${PATHS[@]}" 2>/dev/null || true)
+}
+
+# GITHUB_STEP_SUMMARY があればチェック結果表を書き込む（PR/run の Summary に表示）。
+write_summary() {
+  [ -n "${GITHUB_STEP_SUMMARY:-}" ] || return 0
+  local a s
+  [ "$ANY_NOW" -gt "$ANY_BASELINE" ] && a="❌ regression" || a="✅"
+  [ "$SUP_NOW" -gt "$SUP_BASELINE" ] && s="❌ regression" || s="✅"
+  {
+    echo "## Type Ratchet"
+    echo ""
+    echo "| metric | now | baseline | status |"
+    echo "|---|---|---|---|"
+    echo "| ${ANY_LABEL} | ${ANY_NOW} | ${ANY_BASELINE} | ${a} |"
+    echo "| suppression | ${SUP_NOW} | ${SUP_BASELINE} | ${s} |"
+    echo ""
+    echo "language \`${LANGUAGE}\` · paths \`${PATHS[*]}\`"
+  } >> "$GITHUB_STEP_SUMMARY"
 }
 
 ANY_NOW=$(count "$ANY_PAT")
@@ -73,12 +104,12 @@ echo "suppress:   now=${SUP_NOW}  baseline=${SUP_BASELINE}"
 status=0
 if [ "$ANY_NOW" -gt "$ANY_BASELINE" ]; then
   echo "❌ REGRESSION: ${ANY_LABEL} が増えた (${ANY_NOW} > ${ANY_BASELINE})"
-  show "$ANY_PAT"
+  report "$ANY_PAT" "${ANY_LABEL}"
   status=1
 fi
 if [ "$SUP_NOW" -gt "$SUP_BASELINE" ]; then
   echo "❌ REGRESSION: suppression が増えた (${SUP_NOW} > ${SUP_BASELINE})"
-  show "$SUP_PAT"
+  report "$SUP_PAT" "suppression"
   status=1
 fi
 if [ "$status" -eq 0 ]; then
@@ -88,6 +119,8 @@ if [ "$status" -eq 0 ]; then
     echo "✅ HELD: baseline を維持。"
   fi
 fi
+
+write_summary
 
 # 任意: 型チェック等のコマンドも実行（例 "pnpm exec tsc --noEmit" / "uv run mypy src"）。
 if [ -n "${INPUT_TYPECHECK_COMMAND:-}" ]; then

@@ -73,6 +73,13 @@ jobs:
 
 TypeScript test files (`*.test.ts(x)`, `*.spec.ts(x)`) are excluded from the count, so tests can use pragmatic `as any` for mocks. Keep them type-checked / run via `typecheck-command`.
 
+## Output
+
+On failure the action:
+
+- Emits **inline annotations** (`::error`) on the exact offending lines, so violations show up right on the PR's *Files changed* tab.
+- Writes a **job summary** table (counts vs. baseline per metric) to the run summary.
+
 ## Tightening the ratchet
 
 When you remove escape hatches and the count drops below the baseline, the gate prints `IMPROVED` — lower the baseline and commit it. The count can only go down.
