@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
-# 型ラチェットの検証ゲート（言語非依存・依存ゼロ）。
+# Type Ratchet gate (language-agnostic, zero-dependency).
 #
-# 型チェックが通った状態から、逃げ道の動的型を「増やさない」ことを保証する。
+# Given a codebase that already type-checks, this ensures the escape hatches
+# do not increase:
 #   Python:     Any        / type: ignore
-#   TypeScript: any(型位置) / as any・@ts-ignore・@ts-expect-error
+#   TypeScript: any (type position) / as any / @ts-ignore / @ts-expect-error
 #
-# 入力は INPUT_* 環境変数（action.yml が設定）。ローカルでも同じ env で実行可能。
+# Inputs come from INPUT_* env vars (set by action.yml). Runs locally with the
+# same env.
 set -uo pipefail
 
 cd "${INPUT_WORKING_DIRECTORY:-.}"
 
-# GitHub のインライン注釈(::error)はリポジトリルート基準のパスを要求するため、
-# working-directory が "." 以外なら違反パスにプレフィックスを付ける。
+# GitHub inline annotations (::error) need paths relative to the repo root, so
+# prefix offending paths when working-directory is not ".".
 ANNOT_PREFIX=""
 [ "${INPUT_WORKING_DIRECTORY:-.}" != "." ] && ANNOT_PREFIX="${INPUT_WORKING_DIRECTORY%/}/"
 
@@ -22,7 +24,7 @@ if [ "$LANGUAGE" = "auto" ]; then
   elif [ -f tsconfig.json ] || [ -f package.json ]; then
     LANGUAGE=typescript
   else
-    echo "言語を自動検出できません。language を python / typescript で指定してください。" >&2
+    echo "Could not auto-detect language. Set 'language' to python or typescript." >&2
     exit 2
   fi
 fi
@@ -37,7 +39,7 @@ case "$LANGUAGE" in
     ;;
   typescript)
     INCLUDES=(--include="*.ts" --include="*.tsx")
-    # テストは part-mock 用の any を許容（型検査・実行は別途 typecheck-command で担保）
+    # Tests may use pragmatic any for mocks; type-check/run them via typecheck-command instead.
     EXCLUDES=(--exclude="*.test.ts" --exclude="*.test.tsx"
               --exclude="*.spec.ts" --exclude="*.spec.tsx")
     ANY_PAT='(:|<|\|)[[:space:]]*any\b|\bany\[\]'
@@ -45,12 +47,13 @@ case "$LANGUAGE" in
     ANY_LABEL="any"
     ;;
   *)
-    echo "未知の language: $LANGUAGE" >&2
+    echo "Unknown language: $LANGUAGE" >&2
     exit 2
     ;;
 esac
 
-# baseline: 入力値を既定とし、baseline-file があれば上書き（ANY_BASELINE/SUP_BASELINE）。
+# Baseline: numeric inputs are the default; baseline-file overrides them
+# (ANY_BASELINE / SUP_BASELINE).
 ANY_BASELINE="${INPUT_BASELINE_ANY:-0}"
 SUP_BASELINE="${INPUT_BASELINE_SUPPRESS:-0}"
 if [ -n "${INPUT_BASELINE_FILE:-}" ] && [ -f "${INPUT_BASELINE_FILE}" ]; then
@@ -60,11 +63,12 @@ fi
 
 read -ra PATHS <<< "${INPUT_PATHS:-src}"
 
-# grep は0件時 exit 1（pipefail で死ぬ）ため { ...; || true; } で吸収して wc で数える。
+# grep exits 1 on zero matches (fatal under pipefail), so wrap with { ...; || true; }
+# and count lines with wc.
 count() {
   { grep -rnIE "${INCLUDES[@]}" "${EXCLUDES[@]}" "$1" "${PATHS[@]}" || true; } | wc -l | tr -d ' '
 }
-# 違反箇所を一覧表示し、GitHub Actions のインライン注釈(::error)も出す。
+# List offending locations and emit GitHub Actions inline annotations (::error).
 report() {
   local pat="$1" kind="$2" m file line
   while IFS= read -r m; do
@@ -76,7 +80,7 @@ report() {
   done < <(grep -rnIE "${INCLUDES[@]}" "${EXCLUDES[@]}" "$pat" "${PATHS[@]}" 2>/dev/null || true)
 }
 
-# GITHUB_STEP_SUMMARY があればチェック結果表を書き込む（PR/run の Summary に表示）。
+# Write a results table to the job summary if GITHUB_STEP_SUMMARY is set.
 write_summary() {
   [ -n "${GITHUB_STEP_SUMMARY:-}" ] || return 0
   local a s
@@ -103,26 +107,26 @@ echo "suppress:   now=${SUP_NOW}  baseline=${SUP_BASELINE}"
 
 status=0
 if [ "$ANY_NOW" -gt "$ANY_BASELINE" ]; then
-  echo "❌ REGRESSION: ${ANY_LABEL} が増えた (${ANY_NOW} > ${ANY_BASELINE})"
+  echo "❌ REGRESSION: ${ANY_LABEL} increased (${ANY_NOW} > ${ANY_BASELINE})"
   report "$ANY_PAT" "${ANY_LABEL}"
   status=1
 fi
 if [ "$SUP_NOW" -gt "$SUP_BASELINE" ]; then
-  echo "❌ REGRESSION: suppression が増えた (${SUP_NOW} > ${SUP_BASELINE})"
+  echo "❌ REGRESSION: suppression increased (${SUP_NOW} > ${SUP_BASELINE})"
   report "$SUP_PAT" "suppression"
   status=1
 fi
 if [ "$status" -eq 0 ]; then
   if [ "$ANY_NOW" -lt "$ANY_BASELINE" ] || [ "$SUP_NOW" -lt "$SUP_BASELINE" ]; then
-    echo "✅ IMPROVED: baseline より下回った。baseline を更新してラチェットを締めよ。"
+    echo "✅ IMPROVED: below baseline — lower the baseline to tighten the ratchet."
   else
-    echo "✅ HELD: baseline を維持。"
+    echo "✅ HELD: at baseline."
   fi
 fi
 
 write_summary
 
-# 任意: 型チェック等のコマンドも実行（例 "pnpm exec tsc --noEmit" / "uv run mypy src"）。
+# Optional: also run a type-check command (e.g. "pnpm exec tsc --noEmit" / "uv run mypy src").
 if [ -n "${INPUT_TYPECHECK_COMMAND:-}" ]; then
   echo "--- typecheck: ${INPUT_TYPECHECK_COMMAND} ---"
   bash -c "${INPUT_TYPECHECK_COMMAND}" || status=1
