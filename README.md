@@ -1,5 +1,10 @@
 # Type Ratchet
 
+[![Marketplace](https://img.shields.io/badge/Marketplace-Type%20Ratchet-2ea44f?logo=github)](https://github.com/marketplace/actions/type-ratchet)
+[![Release](https://img.shields.io/github/v/release/motchalini-llc/type-ratchet?sort=semver)](https://github.com/motchalini-llc/type-ratchet/releases)
+[![self-test](https://github.com/motchalini-llc/type-ratchet/actions/workflows/self-test.yml/badge.svg)](https://github.com/motchalini-llc/type-ratchet/actions/workflows/self-test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A zero-dependency GitHub Action that **stops new dynamic types from creeping into a type-checked codebase**.
 
 Your type checker (`mypy --strict`, `tsc`) can pass while escape hatches quietly pile up: `Any`, `# type: ignore`, `any`, `as any`, `@ts-ignore`. Type Ratchet counts those escape hatches and **fails the PR if the count goes up** — so a clean codebase stays clean, and a messy one only gets better (a ratchet).
