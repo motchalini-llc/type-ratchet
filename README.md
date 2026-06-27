@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: motchalini/type-ratchet@v1
+      - uses: motchalini-llc/type-ratchet@v1
         with:
           language: typescript   # python | typescript | auto
 ```
@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - uses: motchalini/type-ratchet@v1
+      - uses: motchalini-llc/type-ratchet@v1
         with:
           language: typescript
           typecheck-command: pnpm exec tsc --noEmit
@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --frozen
-      - uses: motchalini/type-ratchet@v1
+      - uses: motchalini-llc/type-ratchet@v1
         with:
           language: python
           baseline-any: '5'        # legitimate Any left in the code (e.g. pd.Series[Any])
