@@ -11,6 +11,16 @@ Your type checker (`mypy --strict`, `tsc`) can pass while escape hatches quietly
 
 It does **not** just rerun your type checker. It catches the thing type checkers can't: someone silencing the checker instead of fixing the type.
 
+## The Ratchet family
+
+Three zero-dependency PR gates, each blocking a different way a green check gets faked:
+
+| Action | Blocks the cheat |
+|---|---|
+| [Type Ratchet](https://github.com/marketplace/actions/type-ratchet) **← this repo** | type escape hatches — `any` / `as any` / `# type: ignore` |
+| [Test Ratchet](https://github.com/marketplace/actions/test-ratchet) | disabled tests — `it.skip` / `.only` / `@pytest.mark.skip` |
+| [Suppress Ratchet](https://github.com/marketplace/actions/suppress-ratchet) | linter suppressions — `eslint-disable` / `biome-ignore` / `# noqa` |
+
 ## Usage
 
 Add one step to a PR workflow:
