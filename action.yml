@@ -1,5 +1,5 @@
 name: 'Type Ratchet'
-description: 'Block new dynamic types (Any/any, type: ignore/as any) from creeping into a type-checked codebase.'
+description: 'Fail PRs that add type escape hatches (any, as any, @ts-ignore, type: ignore). Zero-config guardrail for AI-written code.'
 author: 'motchalini'
 branding:
   icon: 'lock'
