@@ -38,7 +38,7 @@ PR を落とす、ゼロ依存の GitHub Action。composite action（`action.yml
   - INPUT_LANGUAGE=typescript INPUT_WORKING_DIRECTORY=tests/fixtures/ts-clean bash gate.sh → exit 0
   - INPUT_LANGUAGE=typescript INPUT_WORKING_DIRECTORY=tests/fixtures/ts-dirty bash gate.sh → exit 非0
   - (該当すれば) gh pr checks <PR番号> で self-test.yml の clean-passes / dirty-fails が green
-ターン上限: <N>
+ターン上限: 15（超えたら打ち切り）
 ```
 
 ### 注意事項
